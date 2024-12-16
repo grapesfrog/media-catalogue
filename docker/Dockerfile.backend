@@ -1,0 +1,33 @@
+# Build stage
+FROM --platform=linux/arm64 node:16-bullseye
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y \
+    python3 \
+    make \
+    g++ \
+    sqlite3 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy package files
+COPY backend/package*.json ./
+
+# Clear npm cache and remove any existing node_modules
+RUN npm cache clean --force && \
+    rm -rf node_modules
+
+# Install dependencies with specific flags for arm64 architecture
+RUN npm install --target_arch=arm64 --target_platform=linux --unsafe-perm --build-from-source
+
+# Copy application code
+COPY backend/ .
+
+# Create database directory and set permissions
+RUN mkdir -p database && \
+    chmod 777 database
+
+EXPOSE 3000
+
+CMD ["npm", "start"]
