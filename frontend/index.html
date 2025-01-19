@@ -19,18 +19,14 @@
                     <input type="text" id="title" required>
                 </div>
                 <div class="form-group">
-                    <label for="mediaType">Media Type:</label>
-                    <select id="mediaType" required></select>
-                </div>
-                <div class="form-group">
                     <label for="genre">Genre:</label>
-                    <select id="genre" required></select>
+                    <input type="text" id="genre" required>
                 </div>
                 <div class="form-group">
                     <label for="location">Location:</label>
                     <input type="text" id="location" required>
                 </div>
-                <button type="submit">Add Media</button>
+                <button type="submit" id="addMediaButton">Add Media</button>
             </form>
         </div>
 
@@ -38,30 +34,29 @@
         <div class="section">
             <h2>Search Catalogue</h2>
             <div class="search-controls">
-                <input type="text" id="searchInput" placeholder="Search by title...">
-                <select id="filterMediaType">
-                    <option value="">All Media Types</option>
-                </select>
-                <select id="filterGenre">
-                    <option value="">All Genres</option>
-                </select>
-                <button onclick="searchMedia()">Search</button>
+                <div class="form-group">
+                    <label for="searchInput">Search by title:</label>
+                    <input type="text" id="searchInput" placeholder="Enter title...">
+                </div>
+                <div class="form-group">
+                    <label for="filterGenre">Filter by genre:</label>
+                    <select id="filterGenre">
+                        <option value="">All Genres</option>
+                    </select>
+                </div>
+                <button type="button" id="searchButton">Search</button>
             </div>
         </div>
 
-        <!-- Natural Language Query -->
+        <!-- Natural Language Query Section -->
         <div class="section">
-            <h2>Natural Language Query</h2>
+            <h2>Natural Language Search</h2>
             <div class="llm-query">
-                <input type="text" id="llmQuery" placeholder="Ask a question about your media collection...">
-                <button onclick="askLLM()">Ask</button>
-            </div>
-            <div id="llmResponse" class="llm-response">
-                <div id="sqlQuery" class="sql-query"></div>
-                <table id="llmResultsTable">
-                    <thead id="llmResultsHead"></thead>
-                    <tbody id="llmResultsBody"></tbody>
-                </table>
+                <div class="form-group">
+                    <label for="nlQuery">Ask a question about your media:</label>
+                    <input type="text" id="nlQuery" placeholder="e.g., 'Show me all action movies on shelf 1'">
+                </div>
+                <button type="button" id="nlQueryButton">Ask</button>
             </div>
         </div>
 
@@ -72,13 +67,17 @@
                 <thead>
                     <tr>
                         <th>Title</th>
-                        <th>Media Type</th>
                         <th>Genre</th>
                         <th>Location</th>
                     </tr>
                 </thead>
                 <tbody id="resultsBody"></tbody>
             </table>
+        </div>
+
+        <!-- Admin Link -->
+        <div class="section">
+            <a href="admin.html" class="admin-link">Go to Admin Page</a>
         </div>
     </div>
     <script src="script.js"></script>

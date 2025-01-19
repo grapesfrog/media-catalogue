@@ -28,4 +28,11 @@ INSERT INTO genres (name) VALUES
     ('Comedy'), 
     ('Drama'), 
     ('Science Fiction'),
-    ('Documentary');
+    ('Documentary'),
+    ('Anime'),
+    ('Horror'),
+    ('Thriller'),
+    ('Romance'),
+    ('Adventure'),
+    ('Documentary'),
+    ('Fantasy');

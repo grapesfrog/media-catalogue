@@ -1,58 +1,67 @@
 const express = require('express');
 const router = express.Router();
-const Media = require('../models/media');
+const { getDb } = require('../../db/database');
 
-router.get('/', async (req, res) => {
+// Get all media
+router.get('/media', async (req, res) => {
     try {
-        const media = await Media.getAllMedia();
+        const db = await getDb();
+        const media = await db.all('SELECT * FROM media ORDER BY title');
         res.json(media);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-router.post('/', async (req, res) => {
-    try {
-        const { title, mediaTypeId, genreId, location } = req.body;
-        const id = await Media.addMedia(title, mediaTypeId, genreId, location);
-        res.status(201).json({ id });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
+    } catch (error) {
+        console.error('Error fetching media:', error);
+        res.status(500).json({ error: 'Failed to fetch media' });
     }
 });
 
-router.get('/genres', async (req, res) => {
+// Search media
+router.get('/media/search', async (req, res) => {
+    const { title, genre } = req.query;
     try {
-        const genres = await Media.getGenres();
-        res.json(genres);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-router.post('/genres', async (req, res) => {
-    try {
-        const { name } = req.body;
-        const id = await Media.addGenre(name);
-        res.status(201).json({ id });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
+        const db = await getDb();
+        let query = 'SELECT * FROM media WHERE 1=1';
+        const params = [];
+
+        if (title) {
+            query += ' AND title LIKE ?';
+            params.push(`%${title}%`);
+        }
+        if (genre) {
+            query += ' AND genre = ?';
+            params.push(genre);
+        }
+
+        query += ' ORDER BY title';
+        const media = await db.all(query, params);
+        res.json(media);
+    } catch (error) {
+        console.error('Error searching media:', error);
+        res.status(500).json({ error: 'Failed to search media' });
     }
 });
 
-router.get('/types', async (req, res) => {
-    try {
-        const types = await Media.getMediaTypes();
-        res.json(types);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
+// Add new media
+router.post('/media', async (req, res) => {
+    const { title, genre, location } = req.body;
+    
+    if (!title || !genre || !location) {
+        return res.status(400).json({ error: 'Title, genre, and location are required' });
     }
-});
-router.post('/types', async (req, res) => {
+
     try {
-        const { name } = req.body;
-        const id = await Media.addMediaType(name);
-        res.status(201).json({ id });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
+        const db = await getDb();
+        const result = await db.run(
+            'INSERT INTO media (title, genre, location, media_type) VALUES (?, ?, ?, ?)',
+            [title, genre, location, 'DVD']
+        );
+        
+        res.status(201).json({
+            id: result.lastID,
+            message: 'Media added successfully'
+        });
+    } catch (error) {
+        console.error('Error adding media:', error);
+        res.status(500).json({ error: 'Failed to add media' });
     }
 });
 

@@ -1,187 +1,219 @@
-const API_URL = 'http://localhost:3000/api';
+// Constants
+const API_BASE_URL = 'http://localhost:8080/api';
 
-// Initialize the page
-document.addEventListener('DOMContentLoaded', async () => {
-    await loadMediaTypes();
-    await loadGenres();
-    await loadMedia();
+// DOM Elements
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('DOM Content Loaded');
+    setupEventListeners();
+    loadAllMedia(); // Load media first
 });
 
-// Load media types into select elements
-async function loadMediaTypes() {
-    try {
-        const response = await fetch(`${API_URL}/media/types`);
-        const mediaTypes = await response.json();
-        
-        const mediaTypeSelect = document.getElementById('mediaType');
-        const filterMediaType = document.getElementById('filterMediaType');
-        
-        mediaTypes.forEach(type => {
-            mediaTypeSelect.add(new Option(type.name, type.id));
-            filterMediaType.add(new Option(type.name, type.id));
+function setupEventListeners() {
+    console.log('Setting up event listeners');
+    
+    // Add Media Form
+    const addForm = document.getElementById('addMediaForm');
+    if (addForm) {
+        console.log('Found add media form');
+        addForm.addEventListener('submit', async (e) => {
+            console.log('Form submit triggered');
+            e.preventDefault();
+            await addMedia();
         });
-    } catch (error) {
-        console.error('Error loading media types:', error);
+    }
+
+    // Search Button
+    const searchButton = document.getElementById('searchButton');
+    if (searchButton) {
+        console.log('Found search button');
+        searchButton.addEventListener('click', () => {
+            console.log('Search button clicked');
+            searchMedia();
+        });
+    }
+
+    // NL Query Button
+    const nlQueryButton = document.getElementById('nlQueryButton');
+    if (nlQueryButton) {
+        console.log('Found NL query button');
+        nlQueryButton.addEventListener('click', () => {
+            console.log('NL query button clicked');
+            performNLQuery();
+        });
+    }
+
+    // Search Input Enter Key
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+        console.log('Found search input');
+        searchInput.addEventListener('keyup', (e) => {
+            if (e.key === 'Enter') {
+                console.log('Search input enter pressed');
+                searchMedia();
+            }
+        });
     }
 }
 
-// Load genres into select elements
-async function loadGenres() {
+async function addMedia() {
+    console.log('Adding media...');
+    const title = document.getElementById('title').value.trim();
+    const genre = document.getElementById('genre').value.trim();
+    const location = document.getElementById('location').value.trim();
+
+    if (!title || !genre || !location) {
+        alert('Please fill in all fields');
+        return;
+    }
+
     try {
-        const response = await fetch(`${API_URL}/media/genres`);
-        const genres = await response.json();
-        
-        const genreSelect = document.getElementById('genre');
-        const filterGenre = document.getElementById('filterGenre');
-        
-        genres.forEach(genre => {
-            genreSelect.add(new Option(genre.name, genre.id));
-            filterGenre.add(new Option(genre.name, genre.id));
+        console.log('Sending add media request...');
+        const response = await fetch(`${API_BASE_URL}/media`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                title,
+                genre,
+                location
+            })
         });
+
+        console.log('Add media response:', response);
+        const data = await response.json();
+
+        if (response.ok) {
+            alert('Media added successfully');
+            document.getElementById('addMediaForm').reset();
+            await loadAllMedia();
+            updateGenreFilter(); // Update genre filter after adding new media
+        } else {
+            alert(`Failed to add media: ${data.message || 'Unknown error'}`);
+        }
     } catch (error) {
-        console.error('Error loading genres:', error);
+        console.error('Error adding media:', error);
+        alert('Failed to add media. Please try again.');
     }
 }
 
-// Load and display all media
-async function loadMedia() {
+async function searchMedia() {
+    console.log('Searching media...');
+    const searchTerm = document.getElementById('searchInput').value;
+    const selectedGenre = document.getElementById('filterGenre').value;
+
     try {
-        const response = await fetch(`${API_URL}/media`);
+        let url = `${API_BASE_URL}/media/search?`;
+        if (searchTerm) url += `title=${encodeURIComponent(searchTerm)}&`;
+        if (selectedGenre) url += `genre=${encodeURIComponent(selectedGenre)}`;
+
+        console.log('Search URL:', url);
+        const response = await fetch(url);
         const media = await response.json();
         displayResults(media);
+    } catch (error) {
+        console.error('Search error:', error);
+        alert('Failed to search media');
+    }
+}
+
+async function performNLQuery() {
+    console.log('Performing NL query...');
+    const query = document.getElementById('nlQuery').value;
+    if (!query) {
+        alert('Please enter a question');
+        return;
+    }
+
+    try {
+        console.log('Sending NL query:', query);
+        const response = await fetch(`${API_BASE_URL}/llm-search`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ query })
+        });
+
+        console.log('NL query response:', response);
+        if (response.ok) {
+            const results = await response.json();
+            displayResults(results);
+        } else {
+            const error = await response.json();
+            alert(`Search failed: ${error.message}`);
+        }
+    } catch (error) {
+        console.error('Natural language query error:', error);
+        alert('Failed to process your question');
+    }
+}
+
+async function loadAllMedia() {
+    console.log('Loading all media...');
+    try {
+        const response = await fetch(`${API_BASE_URL}/media`);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const media = await response.json();
+        displayResults(media);
+        updateGenreFilter(media); // Update genre filter with available genres
     } catch (error) {
         console.error('Error loading media:', error);
     }
 }
 
-// Handle form submission
-document.getElementById('addMediaForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
+function updateGenreFilter(media = []) {
+    const genreSelect = document.getElementById('filterGenre');
+    if (!genreSelect) return;
+
+    // Get unique genres from media
+    const genres = [...new Set(media.map(item => item.genre))].sort();
     
-    const formData = {
-        title: document.getElementById('title').value,
-        mediaTypeId: document.getElementById('mediaType').value,
-        genreId: document.getElementById('genre').value,
-        location: document.getElementById('location').value
-    };
-
-    try {
-        const response = await fetch(`${API_URL}/media`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(formData)
-        });
-
-        if (response.ok) {
-            alert('Media added successfully!');
-            document.getElementById('addMediaForm').reset();
-            await loadMedia();
-        } else {
-            alert('Error adding media');
+    // Update genre select options
+    genreSelect.innerHTML = '<option value="">All Genres</option>';
+    genres.forEach(genre => {
+        if (genre) { // Only add non-empty genres
+            const option = document.createElement('option');
+            option.value = genre;
+            option.textContent = genre;
+            genreSelect.appendChild(option);
         }
-    } catch (error) {
-        console.error('Error:', error);
-        alert('Error adding media');
-    }
-});
-
-// Search functionality
-async function searchMedia() {
-    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-    const mediaTypeFilter = document.getElementById('filterMediaType').value;
-    const genreFilter = document.getElementById('filterGenre').value;
-
-    try {
-        const response = await fetch(`${API_URL}/media`);
-        let media = await response.json();
-
-        // Apply filters
-        media = media.filter(item => {
-            const matchesSearch = item.title.toLowerCase().includes(searchTerm);
-            const matchesMediaType = !mediaTypeFilter || item.media_type_id == mediaTypeFilter;
-            const matchesGenre = !genreFilter || item.genre_id == genreFilter;
-            return matchesSearch && matchesMediaType && matchesGenre;
-        });
-
-        displayResults(media);
-    } catch (error) {
-        console.error('Error searching media:', error);
-    }
-}
-
-// Display results in the table
-function displayResults(media) {
-    const tbody = document.getElementById('resultsBody');
-    tbody.innerHTML = '';
-
-    media.forEach(item => {
-        const row = tbody.insertRow();
-        row.insertCell(0).textContent = item.title;
-        row.insertCell(1).textContent = item.media_type;
-        row.insertCell(2).textContent = item.genre;
-        row.insertCell(3).textContent = item.location;
     });
 }
 
-async function askLLM() {
-    const query = document.getElementById('llmQuery').value;
-    console.log('Query submitted:', query); // Debug log
-    
-    try {
-        console.log('Sending request to:', `${API_URL}/llm/query`); // Debug log
-        const response = await fetch(`${API_URL}/llm/query`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ query })
-        });
-
-        console.log('Response received:', response); // Debug log
-        const data = await response.json();
-        console.log('Parsed data:', data); // Debug log
-        
-        // Display the SQL query
-        document.getElementById('sqlQuery').textContent = data.query;
-        
-        // Display the results
-        displayLLMResults(data.results);
-    } catch (error) {
-        console.error('Error in askLLM:', error); // More detailed error logging
-        alert('Error processing your question');
-    }
-}
-
-function displayLLMResults(results) {
-    if (!results || results.length === 0) {
-        document.getElementById('llmResultsTable').style.display = 'none';
+function displayResults(media) {
+    console.log('Displaying results:', media);
+    const tbody = document.getElementById('resultsBody');
+    if (!tbody) {
+        console.error('Results table body not found');
         return;
     }
 
-    const thead = document.getElementById('llmResultsHead');
-    const tbody = document.getElementById('llmResultsBody');
-    
-    // Clear previous results
-    thead.innerHTML = '';
     tbody.innerHTML = '';
-    
-    // Create headers
-    const headerRow = thead.insertRow();
-    Object.keys(results[0]).forEach(key => {
-        const th = document.createElement('th');
-        th.textContent = key;
-        headerRow.appendChild(th);
+
+    if (!Array.isArray(media)) {
+        console.error('Expected array of media items, got:', media);
+        return;
+    }
+
+    media.forEach(item => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${escapeHtml(item.title)}</td>
+            <td>${escapeHtml(item.genre)}</td>
+            <td>${escapeHtml(item.location)}</td>
+        `;
+        tbody.appendChild(row);
     });
-    
-    // Add data rows
-    results.forEach(result => {
-        const row = tbody.insertRow();
-        Object.values(result).forEach(value => {
-            row.insertCell().textContent = value;
-        });
-    });
-    
-    document.getElementById('llmResultsTable').style.display = 'table';
+}
+
+function escapeHtml(unsafe) {
+    return unsafe
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
 }
