@@ -59,8 +59,8 @@ The database configuration is in `app.py`. Update these settings if needed:
 DB_CONFIG = {
     "host": "localhost",
     "database": "media",
-    "user": "admin",
-    "password": "media",
+    "user": "YOUR-USERNAME",
+    "password": "YOUR-PASSWORD",
     "port": "5432"
 }
 ```
