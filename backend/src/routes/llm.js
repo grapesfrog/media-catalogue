@@ -1,72 +1,97 @@
 const express = require('express');
 const router = express.Router();
-const { getDb } = require('../../db/database');
 
-router.post('/llm-search', async (req, res) => {
-    const { query } = req.body;
-    
-    if (!query) {
-        return res.status(400).json({ error: 'Query is required' });
+const API_BASE_URL = 'http://localhost:8080/api'; // adjust if needed
+
+// Helper function to call the Ollama API
+async function getLLMResponse(query) {
+  // Build a strict prompt instructing Ollama to output only JSON.
+  const prompt = `You are a data query assistant.
+Based on the following query, return only a JSON array of records.
+Each record is an object with keys "DVD Title", "Genre", "Location", and "Room".
+Do not include any explanation or extra text—only return valid JSON.
+Query: ${query}`;
+  
+  // Call Ollama (adjust the URL and model name as needed)
+  try {
+    const response = await fetch('http://localhost:11434/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: "llama2", // Change this as needed for your setup
+        prompt: prompt,
+        max_tokens: 500,
+        temperature: 0  // Lower temperature for more deterministic output
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
 
+    const data = await response.json();
+    console.log('Raw LLM response from Ollama:', data);
+
+    // Verify we have an output string.
+    if (!data || typeof data.output !== 'string') {
+      throw new Error('failed to process your question: no valid output property');
+    }
+
+    return data.output.trim();
+  } catch (error) {
+    console.error('Error fetching response from Ollama:', error);
+    throw error;
+  }
+}
+
+router.post('/llm', async (req, res) => {
+  try {
+    const query = req.body.query;
+    const rawResponse = await getLLMResponse(query);
+    console.log('Raw response fetched:', rawResponse);
+
+    let parsedResponse;
     try {
-        // First get all media items from database
-        const db = await getDb();
-        const media = await db.all('SELECT * FROM media');
-        
-        // Format the media data for the LLM
-        const mediaContext = media.map(item => 
-            `Title: ${item.title}, Genre: ${item.genre}, Location: ${item.location}`
-        ).join('\n');
-
-        // Prepare the prompt for Llama
-        const prompt = `
-Given this media catalogue:
-${mediaContext}
-
-User question: ${query}
-
-Return only the relevant items from the catalogue that answer the question. Format your response as a JSON array of objects with title, genre, and location fields.
-`;
-
-        // Call Ollama API
-        const response = await fetch('http://localhost:11434/api/generate', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                model: 'llama3.2',
-                prompt: prompt,
-                stream: false
-            })
-        });
-
-        const llmResponse = await response.json();
-        
-        try {
-            // Parse the LLM response as JSON
-            const parsedResponse = JSON.parse(llmResponse.response);
-            
-            // Validate the response format
-            if (Array.isArray(parsedResponse)) {
-                res.json(parsedResponse);
-            } else {
-                throw new Error('Invalid response format');
-            }
-        } catch (parseError) {
-            console.error('Error parsing LLM response:', parseError);
-            // Fallback to returning all media if LLM response is invalid
-            res.json(media);
-        }
-
+      parsedResponse = JSON.parse(rawResponse);
     } catch (error) {
-        console.error('LLM search error:', error);
-        res.status(500).json({ 
-            error: 'Failed to process natural language query',
-            details: error.message
-        });
+      console.error('Error parsing LLM response:', error);
+      return res.status(500).json({
+        error: 'Invalid JSON response from LLM',
+        raw: rawResponse
+      });
     }
+    res.json(parsedResponse);
+  } catch (error) {
+    console.error('Error in LLM route:', error);
+    res.status(500).json({ error: error.message });
+  }
 });
+
+async function performNLQuery(query) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/llm`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query })
+    });
+    
+    // Here we're getting the raw text first, so we can inspect it
+    const raw = await response.text();
+    console.log("Raw LLM response:", raw);
+    
+    // Parse as JSON
+    try {
+      return JSON.parse(raw);
+    } catch (parseError) {
+      console.error("Error parsing JSON from LLM response:", parseError);
+      throw parseError;
+    }
+  } catch (error) {
+    console.error("Natural language query error:", error);
+    throw error;
+  }
+}
 
 module.exports = router;

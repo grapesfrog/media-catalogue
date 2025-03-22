@@ -3,9 +3,9 @@ const API_BASE_URL = 'http://localhost:8080/api';
 
 // DOM Elements
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('DOM Content Loaded');
+    console.log('Main page loaded');
     setupEventListeners();
-    loadAllMedia(); // Load media first
+    loadAllMedia();
 });
 
 function setupEventListeners() {
@@ -98,19 +98,24 @@ async function addMedia() {
 }
 
 async function searchMedia() {
-    console.log('Searching media...');
-    const searchTerm = document.getElementById('searchInput').value;
-    const selectedGenre = document.getElementById('filterGenre').value;
+    const searchInput = document.getElementById('searchInput').value;
+    const genreFilter = document.getElementById('filterGenre').value;
 
     try {
         let url = `${API_BASE_URL}/media/search?`;
-        if (searchTerm) url += `title=${encodeURIComponent(searchTerm)}&`;
-        if (selectedGenre) url += `genre=${encodeURIComponent(selectedGenre)}`;
+        if (searchInput) {
+            url += `title=${encodeURIComponent(searchInput)}&`;
+        }
+        if (genreFilter) {
+            url += `genre=${encodeURIComponent(genreFilter)}`;
+        }
 
-        console.log('Search URL:', url);
         const response = await fetch(url);
-        const media = await response.json();
-        displayResults(media);
+        if (!response.ok) {
+            throw new Error('Search failed');
+        }
+        const results = await response.json();
+        displayResults(results);
     } catch (error) {
         console.error('Search error:', error);
         alert('Failed to search media');
@@ -153,12 +158,22 @@ async function loadAllMedia() {
     console.log('Loading all media...');
     try {
         const response = await fetch(`${API_BASE_URL}/media`);
+        console.log('Response status:', response.status);
+        
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
-        const media = await response.json();
-        displayResults(media);
-        updateGenreFilter(media); // Update genre filter with available genres
+        
+        const data = await response.json();
+        console.log('Loaded media data:', data);
+        
+        if (!Array.isArray(data)) {
+            console.error('Expected array but got:', typeof data);
+            return;
+        }
+        
+        displayResults(data);
+        updateGenreFilter(data);
     } catch (error) {
         console.error('Error loading media:', error);
     }
@@ -169,17 +184,18 @@ function updateGenreFilter(media = []) {
     if (!genreSelect) return;
 
     // Get unique genres from media
-    const genres = [...new Set(media.map(item => item.genre))].sort();
+    const genres = [...new Set(media
+        .map(item => item['Genre'])
+        .filter(genre => genre && genre.trim() !== '')
+    )].sort();
     
     // Update genre select options
     genreSelect.innerHTML = '<option value="">All Genres</option>';
     genres.forEach(genre => {
-        if (genre) { // Only add non-empty genres
-            const option = document.createElement('option');
-            option.value = genre;
-            option.textContent = genre;
-            genreSelect.appendChild(option);
-        }
+        const option = document.createElement('option');
+        option.value = genre;
+        option.textContent = genre;
+        genreSelect.appendChild(option);
     });
 }
 
@@ -194,26 +210,39 @@ function displayResults(media) {
     tbody.innerHTML = '';
 
     if (!Array.isArray(media)) {
-        console.error('Expected array of media items, got:', media);
+        console.error('Expected array of media items, got:', typeof media);
         return;
     }
 
     media.forEach(item => {
+        // Safely get values with fallbacks
+        const title = item['DVD Title'] || '';
+        const genre = item['Genre'] || '';
+        const location = item['Location'] || '';
+        const room = item['Room'] || '';
+
         const row = document.createElement('tr');
         row.innerHTML = `
-            <td>${escapeHtml(item.title)}</td>
-            <td>${escapeHtml(item.genre)}</td>
-            <td>${escapeHtml(item.location)}</td>
+            <td>${escapeHtml(title)}</td>
+            <td>${escapeHtml(genre)}</td>
+            <td>${escapeHtml(location)}</td>
+            <td>${escapeHtml(room)}</td>
         `;
         tbody.appendChild(row);
     });
 }
 
-function escapeHtml(unsafe) {
-    return unsafe
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
+function escapeHtml(text) {
+    if (text === null || text === undefined) {
+        return '';
+    }
+    const str = String(text);
+    const map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+    };
+    return str.replace(/[&<>"']/g, function(m) { return map[m]; });
 }

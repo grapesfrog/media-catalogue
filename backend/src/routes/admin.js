@@ -225,4 +225,35 @@ router.delete('/media/:id', async (req, res) => {
     }
 });
 
+// Add this new route for bulk deletion
+router.delete('/media/all', async (req, res) => {
+    try {
+        console.log('Attempting to delete all records');
+        const db = await getDb();
+        
+        // Begin transaction
+        await db.run('BEGIN TRANSACTION');
+        
+        // Delete all records
+        await db.run('DELETE FROM media');
+        
+        // Commit transaction
+        await db.run('COMMIT');
+        
+        console.log('All records deleted successfully');
+        res.json({ message: 'All records deleted successfully' });
+    } catch (error) {
+        console.error('Error deleting all records:', error);
+        
+        // Rollback on error
+        const db = await getDb();
+        await db.run('ROLLBACK');
+        
+        res.status(500).json({ 
+            error: 'Failed to delete all records',
+            details: error.message 
+        });
+    }
+});
+
 module.exports = router;
