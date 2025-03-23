@@ -21,7 +21,7 @@ A simple web application that allows you to query your DVD collection using natu
 1. Clone the repository:
 ```bash
 git clone <repository-url>
-cd cursor-dvdpicker
+cd streamlined_example
 ```
 
 2. Create a virtual environment and activate it:
@@ -79,7 +79,7 @@ http://localhost:5000
 
 ## Example Queries
 
-The chatbot understands various types of queries:
+The chatbot understands various types of queries e.g:
 
 - "Do we have any fantasy films?"
 - "What movies are in the living room?"
@@ -90,7 +90,7 @@ The chatbot understands various types of queries:
 ## Project Structure
 
 ```
-cursor-dvdpicker/
+streamlined_example/
 ├── app.py              # Main application file
 ├── requirements.txt    # Python dependencies
 ├── README.md          # This file
@@ -128,4 +128,4 @@ cursor-dvdpicker/
 
 ## Contributing
 
-This is purely for demo purposes no contributions are accepted
+This is purely for demo purposes and designed to use locally. No contributions are accepted
